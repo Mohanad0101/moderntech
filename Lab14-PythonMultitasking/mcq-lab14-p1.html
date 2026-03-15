@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab 14 — Многозадачность: MCQ</title>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --muted: #57606a;
+      --border: #d0d7de;
+      --correct-bg: #dafbe1;
+      --correct-border: #1a7f37;
+      --wrong-bg: #ffebe9;
+      --wrong-border: #cf222e;
+      --accent: #0969da;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117;
+      --card: #161b22;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --border: #30363d;
+      --correct-bg: #1a4d2e;
+      --correct-border: #2ea043;
+      --wrong-bg: #4d1f1f;
+      --wrong-border: #f85149;
+      --accent: #58a6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1rem;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .container { max-width: 760px; margin: 0 auto; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.25rem; margin: 0; flex: 1 1 auto; }
+    .progress-text { font-size: 0.9rem; color: var(--muted); }
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 0.25rem;
+      flex: 1 1 100%;
+    }
+    .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s ease-out; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .btn {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .slide-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .slide-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .slide-header .topic-tag {
+      background: var(--bg);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .slide-header .level-tag { font-style: italic; }
+    .q-text {
+      font-weight: 500;
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+      font-size: 1.05rem;
+    }
+    .q-text code, .opt code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.9em;
+      background: var(--bg);
+      padding: 0.1em 0.3em;
+      border-radius: 4px;
+    }
+    .options { display: flex; flex-direction: column; gap: 0.5rem; }
+    .opt {
+      display: block;
+      text-align: left;
+      width: 100%;
+      padding: 0.65rem 1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .opt:hover:not(.reveal) { border-color: var(--accent); background: var(--bg); }
+    .opt.reveal { cursor: default; }
+    .opt.correct { background: var(--correct-bg); border-color: var(--correct-border); }
+    .opt.wrong { background: var(--wrong-bg); border-color: var(--wrong-border); }
+    .explanation {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+      border-left: 4px solid var(--accent);
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+    }
+    .interview-note {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--correct-bg);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .nav-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+      gap: 0.5rem;
+    }
+    .nav-row .btn { min-width: 100px; }
+    .results-panel {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+    }
+    .results-panel.visible { display: block; }
+    .results-panel h2 { margin-top: 0; font-size: 1.25rem; }
+    .topic-stats { margin: 0.75rem 0; }
+    .topic-stats .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+      font-size: 0.9rem;
+    }
+    .topic-stats .bar {
+      flex: 1;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .topic-stats .bar-fill {
+      height: 100%;
+      background: var(--correct-border);
+      transition: width 0.3s ease-out;
+    }
+    .flashcard-reveal { margin: 0.75rem 0; }
+    .timer { font-weight: 700; font-size: 1.05rem; }
+    .bookmark-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.25rem;
+      padding: 0.25rem;
+    }
+    .bookmark-btn.active { color: #d4a017; }
+    .dot-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+    }
+    .dot-nav span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      cursor: pointer;
+    }
+    .dot-nav span.answered { background: var(--muted); }
+    .dot-nav span.correct { background: var(--correct-border); }
+    .dot-nav span.wrong { background: var(--wrong-border); }
+    .dot-nav span.current { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 600px) {
+      body { padding: 0.5rem; }
+      .slide-card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Lab 14: Многозадачность и параллелизм</h1>
+      <div class="progress-text"><span id="progressLabel">Вопрос 1</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="controls">
+        <label><input type="checkbox" id="darkMode"> Тёмная тема</label>
+        <label><input type="checkbox" id="interviewMode"> Режим интервью</label>
+        <label><input type="checkbox" id="flashcardMode"> Режим карточек</label>
+        <button type="button" class="btn" id="reviewWrong">Только ошибочные</button>
+        <button type="button" class="btn" id="showResults">Результаты</button>
+      </div>
+    </header>
+    <main>
+      <div class="slide-card" id="slideCard">
+        <div class="slide-header">
+          <span id="slideNum">Вопрос 1</span>
+          <span class="topic-tag" id="topicTag">—</span>
+          <span class="level-tag" id="levelTag">—</span>
+          <button type="button" class="bookmark-btn" id="bookmarkBtn" title="Закладка">☆</button>
+        </div>
+        <div class="q-text" id="qText"></div>
+        <div class="flashcard-reveal" id="flashcardReveal" style="display: none;">
+          <button type="button" class="btn" id="revealOptionsBtn">Показать варианты</button>
+        </div>
+        <div id="timerBlock" style="display: none;">
+          <span class="timer">Время: <span id="timerSec">90</span> с</span>
+        </div>
+        <div class="options" id="options"></div>
+        <div class="explanation" id="explanation" style="display: none;"></div>
+        <div class="interview-note" id="interviewNote" style="display: none;"></div>
+      </div>
+      <div class="dot-nav" id="dotNav"></div>
+      <div class="nav-row">
+        <button type="button" class="btn" id="prevBtn">Назад</button>
+        <button type="button" class="btn" id="nextBtn">Вперёд</button>
+      </div>
+    </main>
+    <section class="results-panel" id="resultsPanel">
+      <h2>Итоги</h2>
+      <p><strong>Счёт: <span id="totalScore">0</span>/<span id="totalQuestions">0</span> (<span id="totalPct">0</span>%)</strong></p>
+      <div class="topic-stats" id="topicStats"></div>
+      <p id="recommendations"></p>
+      <p id="masteredList"></p>
+      <button type="button" class="btn" id="backToQuiz">Вернуться к вопросам</button>
+    </section>
+  </div>
+  <script>
+window.QUESTIONS = [
+  {"id":1,"topic":"Конкуррентность vs параллелизм","topic_en":"Concurrency vs Parallelism","difficulty":"foundation","level":1,"interview_focus":"Различие структуры (concurrency) и одновременного выполнения (parallelism).","question":"Что корректно описывает различие между конкуррентностью и параллелизмом в контексте CPython?","options":["Конкуррентность — это структурирование программы так, чтобы несколько задач продвигались вперемешку; параллелизм — одновременное выполнение инструкций на нескольких ядрах. В CPython потоки дают конкуррентность, но не параллелизм байткода из-за GIL.","Конкуррентность и параллелизм — синонимы, различий нет.","Параллелизм возможен только с asyncio, а конкуррентность — только с процессами.","В CPython конкуррентности нет, есть только параллелизм за счёт потоков."],"correct":0,"explanation":"Конкуррентность описывает структуру и чередование задач, а параллелизм — физическое одновременное выполнение. В реализации CPython потоки дают конкуррентность, но из-за GIL только один поток выполняет байткод в момент времени. Параллелизм достигается процессами или C-кодом, освобождающим GIL."},
+  {"id":2,"topic":"GIL","topic_en":"GIL","difficulty":"foundation","level":1,"interview_focus":"Что такое GIL в CPython и как он влияет на потоки.","question":"Что такое GIL в реализации CPython и как он влияет на выполнение потоков?","options":["GIL — это глобальная блокировка ОС, которая управляет всеми потоками в системе.","GIL (Global Interpreter Lock) — внутренняя блокировка интерпретатора CPython: в каждый момент времени только один поток может выполнять байткод Python в данном процессе.","GIL есть во всех реализациях Python, включая Jython и PyPy.","GIL гарантирует, что операции над любыми объектами Python всегда атомарны, поэтому дополнительные блокировки не нужны."],"correct":1,"explanation":"GIL — особенность именно CPython: он защищает внутренние структуры интерпретатора и разрешает исполнять байткод только одному потоку в процессе. В других реализациях (Jython, IronPython, PyPy) может не быть GIL. GIL не делает все операции высокоуровневого кода атомарными; для защиты общих данных нужны явные блокировки."},
+  {"id":3,"topic":"Сравнение / выбор под задачу","topic_en":"Comparison","difficulty":"foundation","level":1,"interview_focus":"Когда использовать threading для I/O-bound задач.","question":"В какой из ситуаций в CPython целесообразнее использовать потоки (threading), а не процессы (multiprocessing)?","options":["CPU-интенсивная обработка изображений на всех ядрах.","Вычисление большого количества чисел Фибоначчи в чистом Python на многопроцессорной машине.","Обслуживание большого числа сетевых соединений, где каждая задача в основном ждёт ответа от сети (I/O-bound).","Ни в какой: потоки в CPython бесполезны из-за GIL."],"correct":2,"explanation":"Для I/O-bound задач потоки в CPython полезны: блокирующие операции (сетевой I/O, диск, time.sleep) обычно освобождают GIL, и другие потоки могут выполнять байткод. Для CPU-bound выгоднее процессы. Утверждение «потоки бесполезны из-за GIL» — распространённое заблуждение."},
+  {"id":4,"topic":"Сравнение / выбор под задачу","topic_en":"Comparison","difficulty":"foundation","level":1,"interview_focus":"Когда использовать multiprocessing для CPU-bound задач.","question":"У вас есть тяжёлый CPU-bound расчёт на большом массиве. Один процесс и один поток слишком медленные. Какой подход в CPython чаще всего даёт реальный параллелизм на нескольких ядрах?","options":["Использовать asyncio и много корутин.","Создать несколько потоков в одном процессе с модулем threading.","Создать один поток, но увеличить приоритет процесса в ОС.","Использовать модуль multiprocessing и несколько процессов, каждый со своим интерпретатором CPython и своим GIL."],"correct":3,"explanation":"В CPython реальный параллелизм байткода достигается за счёт нескольких процессов: у каждого процесса свой интерпретатор и свой GIL. Несколько потоков в одном процессе по-прежнему делят один GIL и не выполняют байткод параллельно. asyncio не даёт параллелизма CPU-bound кода."},
+  {"id":5,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"foundation","level":1,"interview_focus":"Какие ресурсы потоки процесса разделяют, а какие нет.","question":"Что из перечисленного разделяют потоки одного процесса в CPython, а что остаётся индивидуальным для каждого потока?","options":["Потоки разделяют адресное пространство процесса (кучу, глобальные объекты), но у каждого потока свой стек и собственные регистры/контекст выполнения.","Каждый поток имеет своё собственное адресное пространство; память не разделяется.","Потоки разделяют только код, но не могут разделять данные.","Потоки разделяют файловую систему, но не память."],"correct":0,"explanation":"Потоки в рамках одного процесса разделяют адресное пространство: глобальные объекты, кучу, открытые файловые дескрипторы. Однако у каждого потока свой стек, регистры и контекст выполнения. Поэтому доступ к общим объектам требует синхронизации; в отличие от процессов, у которых память изолирована."},
+  {"id":6,"topic":"GIL","topic_en":"GIL","difficulty":"application","level":2,"interview_focus":"Освобождение GIL при time.sleep и I/O.","question":"В однопроцессном приложении CPython на одном ядре запускаются два потока: один выполняет time.sleep(2), второй — плотный цикл for i in range(10**7): pass. Что произойдёт на практике?","options":["Оба потока будут выполнять байткод одновременно на одном ядре, так как GIL отключается во время цикла.","time.sleep(2) освободит GIL, поэтому в период сна первый поток не выполняет байткод, а второй может выполнять свой цикл; потоки работают конкурентно, но не параллельно на CPU.","Возникнет deadlock из-за GIL, и оба потока «замёрзнут».","Интерпретатор выполнит сначала полностью time.sleep, а затем полностью цикл, без переключений."],"correct":1,"explanation":"В реализации CPython time.sleep реализован как блокирующий системный вызов, который освобождает GIL. Пока первый поток спит, второй может выполнять байткод. На одноядерной машине это конкуррентность (переключение задач), а не параллелизм байткода. GIL не вызывает deadlock в этом сценарии и не заставляет код выполняться строго последовательно."},
+  {"id":7,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"application","level":2,"interview_focus":"Польза потоков для многоклиентского TCP-сервера.","question":"Почему TCP-сервер «один поток на клиента» в CPython может обслуживать заметно больше клиентов, чем строго однопоточный сервер?","options":["Потоки распределяются по ядрам, и каждый поток выполняет Python-код параллельно на своём ядре.","GIL полностью отключается для всех сетевых операций, поэтому сервер становится по-настоящему параллельным.","При блокирующих вызовах accept()/recv() поток освобождает GIL и блокируется в ядре; другие потоки в это время могут выполнять байткод и обслуживать других клиентов.","Однопоточный сервер всегда может обслужить столько же клиентов, сколько многопоточный, только медленнее."],"correct":2,"explanation":"Блокирующий сетевой I/O в CPython обычно освобождает GIL и переводит поток в состояние ожидания в ядре. Пока один поток ждёт данные, другие потоки могут выполнять байткод и обслуживать другие соединения. Это даёт конкуррентность и лучшее использование времени по сравнению с однопоточным вариантом."},
+  {"id":8,"topic":"Asyncio","topic_en":"Asyncio","difficulty":"application","level":2,"interview_focus":"Что делает await и как работает event loop.","question":"Что фактически происходит при выполнении оператора await в корутине asyncio?","options":["Текущий поток блокируется до завершения ожидаемой операции, поэтому другие корутины временно останавливаются.","Выполняется переключение на другой системный поток, который продолжает корутину на другом ядре.","Создаётся новый процесс для выполнения ожидающей операции параллельно.","Управление возвращается в цикл событий (event loop), который может запланировать выполнение других корутин или ожидание I/O; корутина будет возобновлена, когда ожидаемое событие произойдёт."],"correct":3,"explanation":"await в asyncio — это кооперативная точка переключения: корутина приостанавливается, управление возвращается в event loop, который может обрабатывать другие задачи или события I/O. Код по-прежнему выполняется в одном потоке; параллельного выполнения байткода нет."},
+  {"id":9,"topic":"Мультипроцессинг","topic_en":"Multiprocessing","difficulty":"application","level":2,"interview_focus":"Чем процессы отличаются от потоков по накладным расходам.","question":"Почему создание нового процесса с модулем multiprocessing обычно «тяжелее» и дороже, чем создание потока?","options":["Создание процесса требует запуска нового интерпретатора CPython и отдельного адресного пространства; потоки создаются внутри существующего процесса и разделяют память.","Потоки создаются интерпретатором Python, а процессы — только ядром ОС.","Процессы не могут использовать системные вызовы напрямую, только потоки.","Для потоков всегда используется копия всего адресного пространства, а для процессов — только код."],"correct":0,"explanation":"Новый процесс — это отдельное адресное пространство и, в случае CPython, отдельный интерпретатор с собственным GIL. Это дороже по времени и памяти, чем создание потока, который разделяет память и интерпретатор с другими потоками процесса."},
+  {"id":10,"topic":"Сокеты","topic_en":"Sockets","difficulty":"application","level":2,"interview_focus":"Ограничения однопоточного блокирующего сервера.","question":"Однопоточный TCP-сервер использует блокирующие вызовы accept() и recv(). Сколько клиентов он может фактически обслуживать одновременно?","options":["Столько, сколько позволяет максимальное число дескрипторов в ОС — однопоточность не влияет.","Фактически одного: пока поток заблокирован в recv() или обрабатывает одного клиента, остальные ждут.","Двух: один клиент в accept(), другой в recv().","Количество клиентов ограничено только скоростью сети, но не моделью блокировки."],"correct":1,"explanation":"В однопоточном блокирующем сервере поток либо ждёт нового соединения в accept(), либо обрабатывает одного активного клиента в recv()/send(). Остальные клиенты вынуждены ждать своей очереди; одновременной обработки нескольких клиентов нет."},
+  {"id":11,"topic":"Конкуррентность vs параллелизм","topic_en":"Concurrency vs Parallelism","difficulty":"application","level":2,"interview_focus":"4 потока на 4 ядрах и влияние GIL.","question":"На машине с 4 ядрами запущены 4 потока CPython, каждый выполняет длительный CPU-bound цикл без I/O. Могут ли эти потоки одновременно выполнять байткод Python на всех 4 ядрах?","options":["Да, ОС распределит по одному потоку на ядро, и все 4 будут параллельно выполнять байткод.","Да, но только если включить поддержку asyncio.","Нет, из-за GIL в каждый момент времени только один поток в процессе может выполнять байткод Python, даже если доступно несколько ядер.","Да, но только если использовать daemon-потоки."],"correct":2,"explanation":"В реализации CPython один процесс имеет один GIL. GIL разрешает выполнять байткод только одному потоку в каждый момент времени. ОС может распределять потоки по ядрам, но одновременно байткод будет выполнять только один поток; остальные либо ждут GIL, либо выполняют системные вызовы/С-код, который освободил GIL."},
+  {"id":12,"topic":"Asyncio","topic_en":"Asyncio","difficulty":"application","level":2,"interview_focus":"Почему asyncio масштабируется по числу соединений.","question":"Почему asyncio часто выбирают для серверов с 10 000 одновременных сетевых соединений вместо модели «один поток на клиента»?","options":["Потому что asyncio гарантирует более низкую задержку для каждого отдельного запроса, чем потоки.","Потому что asyncio по умолчанию использует все ядра CPU.","Потому что GIL полностью отключается при использовании asyncio.","Потому что один поток с циклом событий и неблокирующим I/O позволяет держать тысячи соединений без накладных расходов на создание и переключение большого числа потоков."],"correct":3,"explanation":"asyncio использует один (или несколько) потоков с неблокирующим I/O и кооперативным планированием. Число обслуживаемых соединений в основном ограничено ресурсами ОС, а не количеством потоков и их стеков. Время ответа одного запроса не обязательно меньше, но масштабируемость по числу соединений обычно выше, чем у модели «один поток на клиента»."},
+  {"id":13,"topic":"Мультипроцессинг","topic_en":"Multiprocessing","difficulty":"application","level":2,"interview_focus":"Как multiprocessing обходит GIL.","question":"Почему multiprocessing в CPython позволяет параллельно выполнять Python-код на нескольких ядрах, несмотря на GIL?","options":["Каждый процесс имеет отдельный интерпретатор CPython и свой собственный GIL, поэтому разные процессы могут одновременно выполнять байткод на разных ядрах.","Модуль multiprocessing временно отключает GIL во всех потоках.","multiprocessing переводит весь код в C и тем самым обходится без GIL.","multiprocessing использует только асинхронный I/O и не выполняет байткод."],"correct":0,"explanation":"Каждый процесс в CPython — это свой интерпретатор с отдельным GIL. GIL ограничивает потоки внутри одного процесса, но не между процессами. Поэтому несколько процессов могут выполнять байткод параллельно на разных ядрах."},
+  {"id":14,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"application","level":2,"interview_focus":"Демон-потоки vs обычные потоки при завершении процесса.","question":"Что произойдёт при завершении главного потока программы, если в процессе остаются запущенные потоки, помеченные как daemon=False (обычные потоки)?","options":["Процесс немедленно завершится, а все оставшиеся потоки будут принудительно остановлены.","Процесс не завершится, пока все не-демон потоки не завершат работу; обычно главный поток вызывает join() для ожидания.","Произойдёт deadlock в GIL.","ОС автоматически переведёт все обычные потоки в демоны."],"correct":1,"explanation":"В CPython (и в POSIX-потоках в целом) процесс жив, пока существуют не-демон потоки. Демон-потоки могут быть оборваны при завершении процесса, но обычные потоки удерживают процесс, пока не завершатся. Поэтому корректный код обычно вызывает join() для таких потоков."},
+  {"id":15,"topic":"GIL","topic_en":"GIL","difficulty":"analysis","level":3,"interview_focus":"Экспериментальный режим без GIL в Python 3.13+.","question":"Как изменится поведение многопоточного CPU-bound кода в экспериментальном режиме CPython 3.13+ без GIL (если он включён и используется соответствующая сборка)?","options":["Никак: даже без GIL CPython по-прежнему исполняет байткод только в одном потоке.","Параллелизм будет доступен только для корутин asyncio, а не для потоков.","Потоки смогут реально выполнять байткод параллельно на нескольких ядрах, но программисту придётся больше заботиться о потокобезопасности структур данных.","GIL будет по-прежнему включён для операций с объектами, но выключен только для встроенных типов."],"correct":2,"explanation":"Экспериментальный режим без GIL в CPython 3.13+ убирает глобальную блокировку интерпретатора. Это позволяет нескольким потокам выполнять байткод параллельно, но ответственность за корректную синхронизацию доступа к общим структурам данных возрастает. Это отдельная сборка/флаг, а не поведение стандартного CPython."},
+  {"id":16,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"analysis","level":3,"interview_focus":"Состояние гонки при counter += 1.","question":"Два потока в CPython инкрементируют общий целочисленный счётчик: counter += 1 в цикле по 10 000 раз в каждом потоке. Почему итоговое значение может оказаться меньше 20 000?","options":["GIL гарантирует, что операция += на целых числах атомарна, поэтому расхождений быть не может.","Проблема возникает только если тип counter — список, а не число.","Потоки всегда выполняются строго по очереди, поэтому значение будет ровно 20 000.","Операция counter += 1 не атомарна на уровне байткода: чтение, вычисление и запись могут перемежаться между потоками, что приводит к потерянным инкрементам без блокировки."],"correct":3,"explanation":"Операция += компилируется в несколько байткод-инструкций: загрузка значения, вычисление нового и запись обратно. Между этими шагами может вмешаться другой поток, что создаёт состояние гонки и потерю инкрементов. GIL не делает всю комплексную операцию атомарной; он лишь сериализует отдельные опкоды. Для корректного результата нужна блокировка или атомарный примитив."},
+  {"id":17,"topic":"Мультипроцессинг","topic_en":"Multiprocessing","difficulty":"analysis","level":3,"interview_focus":"Когда multiprocessing может быть невыгоден.","question":"В каком сценарии использование multiprocessing в CPython может оказаться медленнее или сложнее, чем использование потоков?","options":["I/O-bound задача с большим количеством взаимодействий между воркерами и центральным процессом, требующих частой сериализации/десериализации объектов.","CPU-bound вычисления на нескольких ядрах.","I/O-bound задача, где каждый воркер большую часть времени ждёт ответа от сети, а данные между воркерами почти не передаются.","Сценарий, где нет ни I/O, ни CPU-нагрузки."],"correct":0,"explanation":"multiprocessing добавляет накладные расходы на создание процессов и межпроцессное взаимодействие (IPC), которое часто реализовано через сериализацию объектов. Для задач, которые много общаются между воркерами и центральным процессом, эти расходы могут перевесить выгоду. Для чистого I/O-bound зачастую проще и дешевле использовать потоки."},
+  {"id":18,"topic":"Сокеты","topic_en":"Sockets","difficulty":"analysis","level":3,"interview_focus":"Блокирующие, неблокирующие и асинхронные сокеты.","question":"Чем отличается использование блокирующего сокета, неблокирующего сокета и сокета в asyncio?","options":["Разницы нет: во всех случаях поток блокируется на recv().","Блокирующий сокет останавливает поток до прихода данных; неблокирующий немедленно возвращает даже при отсутствии данных; в asyncio сокет используется через неблокирующий I/O и цикл событий, поэтому один поток может обслуживать много соединений.","Неблокирующие сокеты всегда обеспечивают более высокую пропускную способность, чем блокирующие.","В asyncio для каждого сокета создаётся отдельный поток ОС."],"correct":1,"explanation":"Блокирующий I/O блокирует поток, неблокирующий требует активного опроса или использования механизмов типа select/epoll. asyncio строится поверх неблокирующего I/O и цикла событий: один поток с event loop может кооперативно управлять множеством соединений. Это модель конкуррентности, а не автоматического параллелизма потоков."},
+  {"id":19,"topic":"Asyncio","topic_en":"Asyncio","difficulty":"analysis","level":3,"interview_focus":"Последствия блокирующих вызовов внутри корутин.","question":"Что произойдёт, если внутри корутины asyncio выполнить длительный блокирующий вызов (например, time.sleep(5) или тяжёлый цикл без await)?","options":["Ничего страшного: другой поток автоматически подхватит выполнение корутин.","Корутина будет автоматически перенесена в отдельный процесс.","Весь event loop будет заблокирован на время этой операции, другие корутины не смогут выполняться или обрабатывать I/O, пока вызов не завершится.","GIL временно отключится, и код начнёт выполняться параллельно."],"correct":2,"explanation":"asyncio предполагает кооперативную модель: корутины должны регулярно отдавать управление через await. Блокирующий вызов внутри корутины блокирует поток, в котором работает event loop, и тем самым замораживает все остальные корутины до завершения вызова."},
+  {"id":20,"topic":"Сравнение / выбор под задачу","topic_en":"Comparison","difficulty":"evaluation","level":4,"interview_focus":"Дизайн решения для смешанной нагрузки I/O + CPU.","question":"Есть 1000 HTTP-запросов к внешнему API, после каждого нужно выполнить тяжёлую CPU-bound обработку ответа. Какой дизайн решения в CPython наиболее обоснован?","options":["Выполнить всё в одном потоке с asyncio: I/O и CPU-обработку внутри корутин без дополнительных механизмов.","Использовать только multiprocessing: по одному процессу на каждый запрос.","Создать 1000 потоков, каждый выполняет I/O и CPU-обработку последовательно.","Использовать asyncio или пул потоков для конкурентной отправки I/O-запросов, а тяжёлую CPU-обработку выносить в пул процессов (multiprocessing) или executor, чтобы использовать несколько ядер и не блокировать event loop."],"correct":3,"explanation":"Лучший компромисс: конкурентный I/O (asyncio или потоки) плюс отдельный пул процессов для CPU-bound части. Это позволяет масштабировать число запросов и одновременно использовать несколько ядер для тяжёлой обработки, не блокируя event loop."},
+  {"id":21,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"analysis","level":3,"interview_focus":"Deadlock при неправильном порядке захвата двух блокировок.","question":"Два потока в CPython захватывают два разных Lock-объекта в разном порядке (первый: сначала lock_a, потом lock_b; второй: сначала lock_b, потом lock_a) и не освобождают их до конца критической секции. Какой риск возникает?","options":["Риск взаимной блокировки (deadlock), когда каждый поток ждёт освобождения блокировки, удерживаемой другим потоком.","Риск только потери производительности, но программа всегда завершается.","Риск состояния гонки, но deadlock невозможен.","Риск только при использовании multiprocessing, а не потоков."],"correct":0,"explanation":"Классический сценарий взаимной блокировки: два потока захватывают ресурсы в разном порядке и могут навсегда заблокировать друг друга. Чтобы избежать deadlock, рекомендуется захватывать несколько блокировок в фиксированном глобальном порядке или использовать более высокоуровневые примитивы."},
+  {"id":22,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"application","level":2,"interview_focus":"Использование Lock для защиты общего ресурса.","question":"Как надёжно защитить общий список results от одновременной записи из нескольких потоков в CPython?","options":["Полагаться на GIL: он гарантирует, что list.append() всегда потокобезопасен в любых комбинациях операций.","Использовать threading.Lock и оборачивать операции изменения списка (например, append, pop) в блок with lock:.","Передавать список по значению в каждый поток, а затем просто присвоить один из вариантов как «истинный».","Использовать только asyncio вместо потоков."],"correct":1,"explanation":"Хотя отдельные операции над списком реализованы в C и часто являются атомарными относительно падения интерпретатора, составные операции и последовательность обращений требуют синхронизации. Правильный способ — использовать threading.Lock и защищать критические секции, где список модифицируется."},
+  {"id":23,"topic":"Многопоточность","topic_en":"Multithreading","difficulty":"application","level":2,"interview_focus":"Поведение потоков при fork() на POSIX-системах.","question":"Что происходит с потоками процесса при вызове os.fork() на типичной POSIX-системе (Linux, macOS) в CPython?","options":["Все потоки копируются в дочерний процесс и продолжают выполняться параллельно.","Все потоки немедленно завершаются и остаётся только главный процесс без потоков.","Только поток, вызвавший fork(), продолжает выполняться в дочернем процессе; остальные потоки существуют только в родительском процессе.","fork() невозможен в многопоточных процессах."],"correct":2,"explanation":"Семантика POSIX fork такова, что в дочернем процессе существует только поток, вызвавший fork; остальные потоки не копируются. Поэтому вызов fork() из многопоточного процесса требует осторожности (см. рекомендации POSIX и документацию Python). multiprocessing на Unix учитывает это поведение."},
+  {"id":24,"topic":"Asyncio","topic_en":"Asyncio","difficulty":"analysis","level":3,"interview_focus":"Сочетание asyncio и потоков.","question":"Можно ли совместить asyncio и threading в одном приложении CPython и какие риски при этом возникают?","options":["Нет, asyncio несовместим с потоками.","Можно, и это автоматически даёт параллелизм корутин на всех ядрах без дополнительных усилий.","Можно, но только если каждый поток запускает свой собственный event loop над общими корутинами.","Можно: например, запустить event loop в одном потоке, а блокирующие операции выносить в пул потоков через run_in_executor, но при этом важно не вызывать методы одного и того же event loop из разных потоков без синхронизации."],"correct":3,"explanation":"asyncio можно комбинировать с потоками, но event loop должен принадлежать одному потоку; обращения к нему из других потоков требуют специальных методов (call_soon_threadsafe) и аккуратной синхронизации. Неправильный доступ к loop из разных потоков может приводить к трудноуловимым ошибкам."},
+  {"id":25,"topic":"Asyncio","topic_en":"Asyncio","difficulty":"analysis","level":3,"interview_focus":"Различие корутин и генераторов.","question":"Чем корутина, объявленная через async def, принципиально отличается от обычной функции-генератора с yield в CPython 3.x?","options":["async def создаёт объект-корутину, который должен исполняться через event loop и await; def с yield создаёт генератор, который управляется через next()/send() и не интегрирован с asyncio по умолчанию.","Ничем: async def и def с yield создают один и тот же тип объекта.","Генераторы могут выполняться только в отдельных потоках, а корутины — только в основном потоке.","Генераторы автоматически используют GIL, а корутины — нет."],"correct":0,"explanation":"async def создаёт корутину, совместимую с протоколом await и ожидаемую для использования с event loop. Обычный генератор с yield подчиняется протоколу итератора и управляется через next()/send(); он может быть обёрнут адаптером для использования в asyncio, но изначально это разные абстракции."},
+  {"id":26,"topic":"Сравнение / выбор под задачу","topic_en":"Comparison","difficulty":"evaluation","level":4,"interview_focus":"Выбор модели для чисто I/O-bound и чисто CPU-bound задач.","question":"Вам нужно реализовать два компонента: (1) HTTP-прокси, обслуживающий тысячи одновременных соединений (I/O-bound), и (2) пакетную CPU-интенсивную обработку изображений. Какой набор технологий CPython наиболее уместен?","options":["(1) threading, (2) threading.","(1) asyncio или модель неблокирующих сокетов, (2) multiprocessing или пул процессов.","(1) multiprocessing с отдельным процессом на каждое соединение, (2) asyncio.","(1) только синхронный однопоточный сервер, (2) только один процесс без распараллеливания."],"correct":1,"explanation":"Для I/O-bound компонента хорошо подходит asyncio (один или несколько потоков с event loop и неблокирующим I/O). Для CPU-bound обработки — multiprocessing или пул процессов, чтобы использовать несколько ядер. Модель «один процесс на соединение» обычно слишком тяжёлая, а threading для CPU-bound не обходит GIL."}
+];
+(function() {
+  var DIFF_NAMES = { foundation: 'Базовый', application: 'Применение', analysis: 'Анализ', evaluation: 'Оценка' };
+  var TOTAL = window.QUESTIONS.length;
+  if (document.getElementById('totalQuestions')) document.getElementById('totalQuestions').textContent = TOTAL;
+  var state = {
+    current: 0,
+    answers: [],
+    bookmarks: JSON.parse(localStorage.getItem('lab14mcq_bookmarks') || '[]'),
+    interviewMode: false,
+    flashcardMode: false,
+    showIncorrectOnly: false,
+    timerInterval: null,
+    timerSec: 90,
+    flashcardRevealed: {}
+  };
+
+  function renderSlide() {
+    var idx = state.current;
+    var q = window.QUESTIONS[idx];
+    if (!q) return;
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timerInterval = null;
+
+    document.getElementById('slideNum').textContent = 'Вопрос ' + (idx + 1) + ' из ' + TOTAL;
+    document.getElementById('topicTag').textContent = q.topic;
+    document.getElementById('levelTag').textContent = DIFF_NAMES[q.difficulty] || q.difficulty;
+    document.getElementById('qText').textContent = q.question;
+    document.getElementById('progressLabel').textContent = 'Вопрос ' + (idx + 1) + ' из ' + TOTAL;
+    document.getElementById('progressFill').style.width = ((idx + 1) / TOTAL * 100) + '%';
+
+    var optsEl = document.getElementById('options');
+    var answered = state.answers[idx];
+    var flashcardRevealEl = document.getElementById('flashcardReveal');
+    var showOptsByFlashcard = !state.flashcardMode || state.flashcardRevealed[idx] || answered !== undefined;
+
+    if (state.flashcardMode && !showOptsByFlashcard) {
+      flashcardRevealEl.style.display = 'block';
+      optsEl.style.display = 'none';
+      document.getElementById('revealOptionsBtn').onclick = function () {
+        state.flashcardRevealed[idx] = true;
+        flashcardRevealEl.style.display = 'none';
+        optsEl.style.display = 'flex';
+        renderOptions();
+      };
+    } else {
+      flashcardRevealEl.style.display = 'none';
+      optsEl.style.display = 'flex';
+      renderOptions();
+    }
+
+    function renderOptions() {
+      optsEl.innerHTML = '';
+      for (var i = 0; i < q.options.length; i++) {
+        var opt = q.options[i];
+        var label = document.createElement('button');
+        label.type = 'button';
+        label.className = 'opt';
+        label.textContent = opt;
+        if (answered !== undefined) {
+          label.classList.add('reveal');
+          label.disabled = true;
+          if (answered.selected === i) {
+            label.classList.add(answered.correct ? 'correct' : 'wrong');
+          }
+          if (q.correct === i && !answered.correct) {
+            label.classList.add('correct');
+          }
+        } else {
+          (function (ii) {
+            label.addEventListener('click', function () {
+              var correct = (ii === q.correct);
+              state.answers[idx] = { correct: correct, selected: ii };
+              if (state.timerInterval) clearInterval(state.timerInterval);
+              state.timerInterval = null;
+              renderSlide();
+              var expl = document.getElementById('explanation');
+              expl.style.display = 'block';
+              expl.textContent = q.explanation;
+              var note = document.getElementById('interviewNote');
+              if (q.interview_focus) {
+                note.style.display = 'block';
+                note.textContent = 'Что проверяет интервьюер: ' + q.interview_focus;
+              } else {
+                note.style.display = 'none';
+              }
+            });
+          })(i);
+        }
+        optsEl.appendChild(label);
+      }
+    }
+
+    var explBlock = document.getElementById('explanation');
+    explBlock.style.display = answered !== undefined ? 'block' : 'none';
+    explBlock.textContent = answered !== undefined ? q.explanation : '';
+    var noteBlock = document.getElementById('interviewNote');
+    if (q.interview_focus && answered !== undefined) {
+      noteBlock.style.display = 'block';
+      noteBlock.textContent = 'Что проверяет интервьюер: ' + q.interview_focus;
+    } else {
+      noteBlock.style.display = 'none';
+    }
+
+    var timerBlock = document.getElementById('timerBlock');
+    timerBlock.style.display = state.interviewMode && answered === undefined ? 'block' : 'none';
+    if (state.interviewMode && answered === undefined) {
+      state.timerSec = 90;
+      document.getElementById('timerSec').textContent = state.timerSec;
+      state.timerInterval = setInterval(function () {
+        state.timerSec--;
+        document.getElementById('timerSec').textContent = state.timerSec;
+        if (state.timerSec <= 0 && state.timerInterval) {
+          clearInterval(state.timerInterval);
+          state.timerInterval = null;
+        }
+      }, 1000);
+    }
+
+    var bookmarkBtn = document.getElementById('bookmarkBtn');
+    bookmarkBtn.textContent = state.bookmarks.indexOf(q.id) >= 0 ? '★' : '☆';
+    bookmarkBtn.classList.toggle('active', state.bookmarks.indexOf(q.id) >= 0);
+    bookmarkBtn.onclick = function () {
+      var i = state.bookmarks.indexOf(q.id);
+      if (i >= 0) state.bookmarks.splice(i, 1);
+      else state.bookmarks.push(q.id);
+      localStorage.setItem('lab14mcq_bookmarks', JSON.stringify(state.bookmarks));
+      bookmarkBtn.textContent = state.bookmarks.indexOf(q.id) >= 0 ? '★' : '☆';
+      bookmarkBtn.classList.toggle('active', state.bookmarks.indexOf(q.id) >= 0);
+    };
+
+    function wrongIndices() {
+      var w = [];
+      for (var i = 0; i < TOTAL; i++) {
+        if (state.answers[i] && !state.answers[i].correct) w.push(i);
+      }
+      return w;
+    }
+
+    var prevBtn = document.getElementById('prevBtn');
+    var nextBtn = document.getElementById('nextBtn');
+    if (state.showIncorrectOnly) {
+      var w = wrongIndices();
+      if (w.length === 0) {
+        prevBtn.onclick = function () {
+          if (state.current > 0) {
+            state.current--;
+            renderSlide();
+          }
+        };
+        prevBtn.disabled = (state.current === 0);
+        nextBtn.textContent = 'Вперёд';
+        nextBtn.onclick = function () {
+          state.current = state.current < (TOTAL - 1) ? state.current + 1 : (TOTAL - 1);
+          renderSlide();
+        };
+      } else {
+        var ci = w.indexOf(state.current);
+        prevBtn.disabled = (ci <= 0);
+        prevBtn.onclick = function () {
+          if (ci > 0) {
+            state.current = w[ci - 1];
+            renderSlide();
+          }
+        };
+        if (ci >= 0 && ci < w.length - 1) {
+          nextBtn.textContent = 'Вперёд';
+          nextBtn.onclick = function () {
+            state.current = w[ci + 1];
+            renderSlide();
+          };
+        } else if (ci >= 0 && ci === w.length - 1) {
+          nextBtn.textContent = 'Результаты';
+          nextBtn.onclick = showResults;
+        } else {
+          nextBtn.textContent = 'Вперёд';
+          nextBtn.onclick = function () {
+            state.current = w[0];
+            renderSlide();
+          };
+        }
+      }
+    } else {
+      prevBtn.onclick = function () {
+        if (state.current > 0) {
+          state.current--;
+          renderSlide();
+        }
+      };
+      prevBtn.disabled = (state.current === 0);
+      if (state.current === TOTAL - 1) {
+        nextBtn.textContent = 'Результаты';
+        nextBtn.onclick = showResults;
+      } else {
+        nextBtn.textContent = 'Вперёд';
+        nextBtn.onclick = function () {
+          state.current++;
+          renderSlide();
+        };
+      }
+    }
+
+    var nav = document.getElementById('dotNav');
+    nav.innerHTML = '';
+    var wrongSet = state.showIncorrectOnly ? (function () {
+      var s = {};
+      state.answers.forEach(function (a, i) { if (a && !a.correct) s[i] = true; });
+      return s;
+    })() : null;
+    for (var i = 0; i < TOTAL; i++) {
+      if (wrongSet && !wrongSet[i]) continue;
+      var span = document.createElement('span');
+      span.title = 'Вопрос ' + (i + 1);
+      if (state.answers[i] !== undefined) {
+        span.classList.add('answered');
+        span.classList.add(state.answers[i].correct ? 'correct' : 'wrong');
+      }
+      if (i === state.current) span.classList.add('current');
+      (function (j) {
+        span.addEventListener('click', function () {
+          state.current = j;
+          renderSlide();
+        });
+      })(i);
+      nav.appendChild(span);
+    }
+  }
+
+  function showResults() {
+    var totalAnswered = 0;
+    var correct = 0;
+    state.answers.forEach(function (a) {
+      if (a !== undefined) {
+        totalAnswered++;
+        if (a.correct) correct++;
+      }
+    });
+    document.getElementById('totalScore').textContent = correct;
+    document.getElementById('totalPct').textContent = Math.round(correct / TOTAL * 100);
+
+    var topicCount = {};
+    var topicCorrect = {};
+    window.QUESTIONS.forEach(function (q, i) {
+      if (!topicCount[q.topic]) topicCount[q.topic] = 0;
+      if (!topicCorrect[q.topic]) topicCorrect[q.topic] = 0;
+      if (state.answers[i] !== undefined) {
+        topicCount[q.topic]++;
+        if (state.answers[i].correct) topicCorrect[q.topic]++;
+      }
+    });
+
+    var html = '';
+    Object.keys(topicCount).forEach(function (t) {
+      var c = topicCorrect[t] || 0;
+      var n = topicCount[t] || 0;
+      var pct = n ? Math.round(c / n * 100) : 0;
+      html += '<div class="bar-row"><span>' + t + ': ' + c + '/' + n +
+              '</span><div class="bar"><div class="bar-fill" style="width:' + pct +
+              '%"></div></div></div>';
+    });
+    document.getElementById('topicStats').innerHTML = html || '<p>Нет данных.</p>';
+
+    var weak = Object.keys(topicCount).filter(function (t) {
+      return (topicCorrect[t] || 0) / (topicCount[t] || 1) < 0.6;
+    });
+    document.getElementById('recommendations').textContent =
+      weak.length ? 'Рекомендуется повторить: ' + weak.join(', ') + '.' :
+      'По всем темам хороший результат.';
+
+    var mastered = [];
+    window.QUESTIONS.forEach(function (q, i) {
+      if (state.answers[i] && state.answers[i].correct && q.interview_focus) {
+        mastered.push(q.interview_focus);
+      }
+    });
+    document.getElementById('masteredList').innerHTML = mastered.length
+      ? '<strong>Освоенные аспекты интервью:</strong><ul><li>' +
+        mastered.slice(0, 8).join('</li><li>') + '</li></ul>'
+      : '';
+
+    document.getElementById('resultsPanel').classList.add('visible');
+    document.querySelector('main').style.display = 'block';
+    document.querySelector('main').style.display = 'none';
+  }
+
+  document.getElementById('darkMode').addEventListener('change', function () {
+    document.documentElement.setAttribute('data-theme', this.checked ? 'dark' : 'light');
+  });
+  document.getElementById('interviewMode').addEventListener('change', function () {
+    state.interviewMode = this.checked;
+    renderSlide();
+  });
+  document.getElementById('flashcardMode').addEventListener('change', function () {
+    state.flashcardMode = this.checked;
+    renderSlide();
+  });
+  document.getElementById('reviewWrong').addEventListener('click', function () {
+    state.showIncorrectOnly = !state.showIncorrectOnly;
+    this.textContent = state.showIncorrectOnly ? 'Все вопросы' : 'Только ошибочные';
+    renderSlide();
+  });
+  document.getElementById('showResults').addEventListener('click', showResults);
+  document.getElementById('backToQuiz').addEventListener('click', function () {
+    document.getElementById('resultsPanel').classList.remove('visible');
+    document.querySelector('main').style.display = 'block';
+  });
+
+  renderSlide();
+})();
+  </script>
+</body>
+</html>
